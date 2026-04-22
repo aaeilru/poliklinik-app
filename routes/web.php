@@ -1,71 +1,89 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\Admin\PoliController;
 use App\Http\Controllers\Admin\PoliController as AdminPoliController;
 use App\Http\Controllers\Admin\DokterController;
 use App\Http\Controllers\Admin\PasienController;
 use App\Http\Controllers\Admin\ObatController;
+use App\Http\Controllers\Admin\PembayaranController as AdminPembayaranController;
+use App\Http\Controllers\Admin\ExportController as AdminExportController;
+use App\Http\Controllers\Dokter\JadwalPeriksaController;
+use App\Http\Controllers\Dokter\PeriksaController;
+use App\Http\Controllers\Dokter\ExportController as DokterExportController;
+use App\Http\Controllers\Pasien\PoliController as PasienPoliController;
+use App\Http\Controllers\Pasien\DashboardController as PasienDashboardController;
+use App\Http\Controllers\Pasien\RiwayatController;
+use App\Http\Controllers\Pasien\PembayaranController as PasienPembayaranController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('auth.login');
-});
-
+// ─── Auth ────────────────────────────────────────────────────────────────────
+Route::get('/', fn() => view('auth.login'));
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
-
 Route::get('/register', [AuthController::class, 'showRegister']);
 Route::post('/register', [AuthController::class, 'register'])->name('register');
-
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// ─── ADMIN ───────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('admin.dashboard');
 
-    Route::resource('polis', PoliController::class);
+    Route::get('/dashboard', fn() => view('admin.dashboard'))->name('admin.dashboard');
+
+    // CRUD
+    Route::resource('polis',  AdminPoliController::class);
+    Route::resource('dokter', DokterController::class);
+    Route::resource('pasien', PasienController::class);
+    Route::resource('obat',   ObatController::class);
+
+    // ── Fitur 6: Verifikasi Bukti Pembayaran ──────────────────────────────
+    Route::get('/pembayaran',           [AdminPembayaranController::class, 'index'])->name('admin.pembayaran.index');
+    Route::post('/pembayaran/{id}/verify', [AdminPembayaranController::class, 'verify'])->name('admin.pembayaran.verify');
+
+    // ── Fitur 5: Export Excel (Admin) ─────────────────────────────────────
+    Route::get('/export/dokter', [AdminExportController::class, 'dokter'])->name('admin.export.dokter');
+    Route::get('/export/pasien', [AdminExportController::class, 'pasien'])->name('admin.export.pasien');
+    Route::get('/export/obat',   [AdminExportController::class, 'obat'])->name('admin.export.obat');
 });
 
+// ─── DOKTER ──────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:dokter'])->prefix('dokter')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dokter.dashboard');
-    })->name('dokter.dashboard');
+
+    Route::get('/dashboard', fn() => view('dokter.dashboard'))->name('dokter.dashboard');
+
+    // Jadwal Periksa
+    Route::resource('jadwal-periksa', JadwalPeriksaController::class);
+
+    // ── Fitur 2: Periksa Pasien + Stok Otomatis ───────────────────────────
+    Route::get('/periksa',                    [PeriksaController::class, 'index'])->name('periksa.index');
+    Route::get('/periksa/create/{id_daftar}', [PeriksaController::class, 'create'])->name('periksa.create');
+    Route::post('/periksa',                   [PeriksaController::class, 'store'])->name('periksa.store');
+
+    // ── Fitur 3 (Dokter): Riwayat Pasien yang sudah diperiksa ─────────────
+    Route::get('/riwayat-pasien', [PeriksaController::class, 'riwayat'])->name('dokter.riwayat');
+
+    // ── Fitur 5: Export Excel (Dokter) ────────────────────────────────────
+    Route::get('/export/jadwal',         [DokterExportController::class, 'jadwal'])->name('dokter.export.jadwal');
+    Route::get('/export/riwayat-pasien', [DokterExportController::class, 'riwayatPasien'])->name('dokter.export.riwayat');
 });
 
+// ─── PASIEN ───────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:pasien'])->prefix('pasien')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('pasien.dashboard');
-    })->name('pasien.dashboard');
-});
 
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('admin.dashboard');
+    // ── Fitur 1: Dashboard Pasien (antrian real-time) ─────────────────────
+    Route::get('/dashboard', [PasienDashboardController::class, 'index'])->name('pasien.dashboard');
 
-    Route::resource('polis', AdminPoliController::class);
-    Route::resource('dokter', DokterController::class);
-});
+    // API endpoint polling antrian (dipanggil JS setiap 5 detik)
+    Route::get('/antrian-live', [PasienDashboardController::class, 'getAntrianLive'])->name('pasien.antrian.live');
 
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('admin.dashboard');
+    // Pendaftaran Poli
+    Route::get('/daftar',  [PasienPoliController::class, 'get'])->name('pasien.daftar');
+    Route::post('/daftar', [PasienPoliController::class, 'submit'])->name('pasien.daftar.submit');
 
-    Route::resource('polis', AdminPoliController::class);
-    Route::resource('dokter', DokterController::class);
-    Route::resource('pasien', PasienController::class);
-});
+    // ── Fitur 3: Riwayat Pendaftaran Poli ────────────────────────────────
+    Route::get('/riwayat',      [RiwayatController::class, 'index'])->name('pasien.riwayat.index');
+    Route::get('/riwayat/{id}', [RiwayatController::class, 'show'])->name('pasien.riwayat.show');
 
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('admin.dashboard');
-
-    Route::resource('polis', AdminPoliController::class);
-    Route::resource('dokter', DokterController::class);
-    Route::resource('pasien', PasienController::class);
-    Route::resource('obat', ObatController::class);
+    // ── Fitur 6: Upload Bukti Pembayaran ──────────────────────────────────
+    Route::get('/pembayaran',                          [PasienPembayaranController::class, 'index'])->name('pasien.pembayaran.index');
+    Route::post('/pembayaran/{id_periksa}/upload',     [PasienPembayaranController::class, 'upload'])->name('pasien.pembayaran.upload');
 });

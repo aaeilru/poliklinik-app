@@ -12,7 +12,7 @@ class DaftarPoli extends Model
         'id_jadwal',
         'id_pasien',
         'keluhan',
-        'no_antrian'
+        'no_antrian',
     ];
 
     public function pasien()
@@ -25,8 +25,29 @@ class DaftarPoli extends Model
         return $this->belongsTo(JadwalPeriksa::class, 'id_jadwal');
     }
 
+    /**
+     * Satu pendaftaran bisa menghasilkan satu atau lebih periksa.
+     * Normalnya hanya satu (dipakai cek sudah diperiksa atau belum).
+     */
     public function periksas()
     {
         return $this->hasMany(Periksa::class, 'id_daftar_poli');
+    }
+
+    /**
+     * Shortcut: ambil data periksa pertama (hasil pemeriksaan).
+     */
+    public function periksa()
+    {
+        return $this->hasOne(Periksa::class, 'id_daftar_poli');
+    }
+
+    /**
+     * Cek apakah pasien ini sudah selesai diperiksa.
+     * Dipakai untuk constraint "tidak bisa daftar lagi sebelum selesai diperiksa".
+     */
+    public function sudahDiperiksa(): bool
+    {
+        return $this->periksas()->exists();
     }
 }
