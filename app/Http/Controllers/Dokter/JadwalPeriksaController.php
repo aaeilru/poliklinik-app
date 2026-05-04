@@ -11,7 +11,8 @@ class JadwalPeriksaController extends Controller
 {
     public function index()
     {
-        $jadwalPeriksas = JadwalPeriksa::where('id_dokter', auth()->id())->get();
+        $dokter = Auth::user();
+        $jadwalPeriksas = JadwalPeriksa::where('id_dokter', $dokter->id)->orderBy('hari')->get();
 
         return view('dokter.jadwal-periksa.index', compact('jadwalPeriksas'));
     }
@@ -44,10 +45,11 @@ class JadwalPeriksaController extends Controller
     public function edit($id)
     {
         $jadwalPeriksa = JadwalPeriksa::findOrFail($id);
+
         return view('dokter.jadwal-periksa.edit', compact('jadwalPeriksa'));
     }
 
-    public function update(Request $request, string $id)
+    public function update(Request $request, $id)
     {
         $request->validate([
             'hari' => 'required',
@@ -67,7 +69,7 @@ class JadwalPeriksaController extends Controller
             ->with('type', 'success');
     }
 
-    public function destroy(string $id)
+    public function destroy($id)
     {
         $jadwalPeriksa = JadwalPeriksa::findOrFail($id);
         $jadwalPeriksa->delete();

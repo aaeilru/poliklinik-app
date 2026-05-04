@@ -8,11 +8,12 @@ use App\Http\Controllers\Admin\ObatController;
 use App\Http\Controllers\Admin\PembayaranController as AdminPembayaranController;
 use App\Http\Controllers\Admin\ExportController as AdminExportController;
 use App\Http\Controllers\Dokter\JadwalPeriksaController;
-use App\Http\Controllers\Dokter\PeriksaController;
+use App\Http\Controllers\Dokter\PeriksaPasienController;
 use App\Http\Controllers\Dokter\ExportController as DokterExportController;
 use App\Http\Controllers\Pasien\PoliController as PasienPoliController;
 use App\Http\Controllers\Pasien\DashboardController as PasienDashboardController;
 use App\Http\Controllers\Pasien\RiwayatController;
+use App\Http\Controllers\Dokter\RiwayatPasienController;
 use App\Http\Controllers\Pasien\PembayaranController as PasienPembayaranController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,16 +54,17 @@ Route::middleware(['auth', 'role:dokter'])->prefix('dokter')->group(function () 
     // Jadwal Periksa
     Route::resource('jadwal-periksa', JadwalPeriksaController::class);
 
-    // ── Fitur 2: Periksa Pasien + Stok Otomatis ───────────────────────────
-    Route::get('/periksa',                    [PeriksaController::class, 'index'])->name('periksa.index');
-    Route::get('/periksa/create/{id_daftar}', [PeriksaController::class, 'create'])->name('periksa.create');
-    Route::post('/periksa',                   [PeriksaController::class, 'store'])->name('periksa.store');
+    // Fitur 2: Periksa Pasien
+    Route::get('/periksa', [PeriksaPasienController::class, 'index'])->name('periksa-pasien.index');
+    Route::get('/periksa/create/{id}', [PeriksaPasienController::class, 'create'])->name('periksa-pasien.create');
+    Route::post('/periksa', [PeriksaPasienController::class, 'store'])->name('periksa-pasien.store');
 
-    // ── Fitur 3 (Dokter): Riwayat Pasien yang sudah diperiksa ─────────────
-    Route::get('/riwayat-pasien', [PeriksaController::class, 'riwayat'])->name('dokter.riwayat');
+    // Fitur 3: Riwayat Pasien
+    Route::get('/riwayat-pasien', [RiwayatPasienController::class, 'index'])->name('dokter.riwayat');
+    Route::get('/riwayat-pasien/{id}', [RiwayatPasienController::class, 'show'])->name('dokter.riwayat.show');
 
-    // ── Fitur 5: Export Excel (Dokter) ────────────────────────────────────
-    Route::get('/export/jadwal',         [DokterExportController::class, 'jadwal'])->name('dokter.export.jadwal');
+    // Fitur 5: Export Excel
+    Route::get('/export/jadwal', [DokterExportController::class, 'jadwal'])->name('dokter.export.jadwal');
     Route::get('/export/riwayat-pasien', [DokterExportController::class, 'riwayatPasien'])->name('dokter.export.riwayat');
 });
 

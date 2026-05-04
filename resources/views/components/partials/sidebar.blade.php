@@ -96,8 +96,8 @@
                 <i class="fas fa-calendar-days w-4 text-center"></i> Jadwal Periksa
             </a>
             {{-- ── Fitur 2: Periksa Pasien ── --}}
-            <a href="{{ route('periksa.index') }}"
-               class="{{ $baseLink }} {{ request()->routeIs('periksa.*') ? $active : $inactive }}">
+            <a href="{{ route('periksa-pasien.index') }}"
+               class="{{ $baseLink }} {{ request()->routeIs('periksa-pasien.*') ? $active : $inactive }}">
                 <i class="fas fa-user-injured w-4 text-center"></i> Periksa Pasien
             </a>
             {{-- ── Fitur 3 (Dokter): Riwayat Pasien ── --}}

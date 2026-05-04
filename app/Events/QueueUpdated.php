@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
  *
  * ALUR LENGKAP:
  * 1. Dokter klik "Simpan Hasil Periksa"
- * 2. PeriksaController::store() dispatch event ini
+ * 2. ::store() dispatch event ini
  * 3. Laravel Reverb (WebSocket server) terima event
  * 4. Reverb kirim ke semua browser yang subscribe channel "antrian"
  * 5. Laravel Echo di browser pasien tangkap event
