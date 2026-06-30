@@ -26,52 +26,47 @@ class PoliController extends Controller
 
     public function submit(Request $request)
     {
-        $request->validate([
-            'id_poli'    => 'required|exists:poli,id',
-            'id_jadwal'  => 'required|exists:jadwal_periksa,id',
-            'keluhan'    => 'nullable|string',
-            'id_pasien'  => 'required|exists:users,id',
-        ]);
+        $request->validate(
+            [
+                'id_jadwal' => 'required|exists:jadwal_periksa,id',
+                'keluhan' => 'required|string|min:3|max:255',
+            ],
+            [
+                'id_jadwal.required' => 'Jadwal periksa wajib dipilih.',
+                'id_jadwal.exists' => 'Jadwal periksa tidak valid.',
+                'keluhan.required' => 'Keluhan wajib diisi.',
+                'keluhan.string' => 'Keluhan harus berupa teks.',
+                'keluhan.min' => 'Keluhan minimal 3 karakter.',
+                'keluhan.max' => 'Keluhan maksimal 255 karakter.',
+            ]
+        );
 
-        $pasienId = $request->id_pasien;
+        $pasienId = auth()->id();
 
-        // ── CONSTRAINT 1: Tidak boleh daftar jika masih ada antrian aktif ──
-        // "Aktif" = DaftarPoli yang belum punya record Periksa (belum diperiksa)
-        $antrianAktif = DaftarPoli::where('id_pasien', $pasienId)
-            ->whereDoesntHave('periksas')
-            ->exists();
-
-        if ($antrianAktif) {
-            return redirect()->back()
-                ->with('message', 'Anda masih memiliki antrian aktif. Selesaikan pemeriksaan terlebih dahulu sebelum mendaftar kembali.')
-                ->with('type', 'error');
-        }
-
-        // ── CONSTRAINT 2: Tidak boleh daftar ke jadwal yang sama 2x ──
-        // (edge case: pasien sudah diperiksa di jadwal ini tapi coba daftar lagi)
-        $sudahDaftarJadwal = DaftarPoli::where('id_pasien', $pasienId)
+        $sudahDaftar = \App\Models\DaftarPoli::where('id_pasien', $pasienId)
             ->where('id_jadwal', $request->id_jadwal)
-            ->whereDoesntHave('periksas') // hanya cek yang belum selesai
             ->exists();
 
-        if ($sudahDaftarJadwal) {
-            return redirect()->back()
-                ->with('message', 'Anda sudah terdaftar di jadwal ini.')
+        if ($sudahDaftar) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('message', 'Anda sudah mendaftar pada jadwal poli ini.')
                 ->with('type', 'error');
         }
 
-        // ── Hitung nomor antrian ──────────────────────────────────────────
-        // Nomor antrian = jumlah yang sudah daftar di jadwal ini + 1
-        $jumlahSudahDaftar = DaftarPoli::where('id_jadwal', $request->id_jadwal)->count();
+        $jumlahSudahDaftar = \App\Models\DaftarPoli::where('id_jadwal', $request->id_jadwal)
+            ->count();
 
-        DaftarPoli::create([
-            'id_pasien'   => $pasienId,
-            'id_jadwal'   => $request->id_jadwal,
-            'keluhan'     => $request->keluhan,
-            'no_antrian'  => $jumlahSudahDaftar + 1,
+        \App\Models\DaftarPoli::create([
+            'id_pasien' => $pasienId,
+            'id_jadwal' => $request->id_jadwal,
+            'keluhan' => $request->keluhan,
+            'no_antrian' => $jumlahSudahDaftar + 1,
         ]);
 
-        return redirect()->route('pasien.dashboard')
+        return redirect()
+            ->route('pasien.dashboard')
             ->with('message', 'Berhasil mendaftar ke Poli! Silakan cek nomor antrian Anda di dashboard.')
             ->with('type', 'success');
     }

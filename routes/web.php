@@ -16,6 +16,9 @@ use App\Http\Controllers\Pasien\RiwayatController;
 use App\Http\Controllers\Dokter\RiwayatPasienController;
 use App\Http\Controllers\Pasien\PembayaranController as PasienPembayaranController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Dokter\DashboardController as DokterDashboardController;
+
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('auth.login'));
@@ -28,7 +31,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // ─── ADMIN ───────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 
-    Route::get('/dashboard', fn() => view('admin.dashboard'))->name('admin.dashboard');
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
     // CRUD
     Route::resource('polis',  AdminPoliController::class);
@@ -49,7 +52,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 // ─── DOKTER ──────────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:dokter'])->prefix('dokter')->group(function () {
 
-    Route::get('/dashboard', fn() => view('dokter.dashboard'))->name('dokter.dashboard');
+    Route::get('/dashboard', [DokterDashboardController::class, 'index'])->name('dokter.dashboard');
 
     // Jadwal Periksa
     Route::resource('jadwal-periksa', JadwalPeriksaController::class);

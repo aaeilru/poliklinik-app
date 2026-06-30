@@ -11,15 +11,10 @@ use Illuminate\Support\Facades\Storage;
 
 class PembayaranController extends Controller
 {
-    /**
-     * Daftar semua tagihan pasien yang sedang login.
-     * Hanya menampilkan pendaftaran yang SUDAH diperiksa (sudah ada tagihan).
-     */
     public function index()
     {
         $pasien = Auth::user();
 
-        // Ambil semua pemeriksaan pasien ini (yang sudah ada record Periksa)
         $tagihans = DaftarPoli::where('id_pasien', $pasien->id)
             ->whereHas('periksas')
             ->with([
@@ -33,59 +28,80 @@ class PembayaranController extends Controller
         return view('pasien.pembayaran.index', compact('tagihans'));
     }
 
-    /**
-     * Upload foto bukti pembayaran.
-     * Pasien mengupload gambar, lalu admin akan verifikasi.
-     */
     public function upload(Request $request, $id_periksa)
     {
-        $request->validate([
-            // File wajib ada, harus gambar, max 2MB
-            'file_bukti' => 'required|image|mimes:jpg,jpeg,png|max:2048',
-        ]);
+        $request->validate(
+            [
+                'file_bukti' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120',
+            ],
+            [
+                'file_bukti.required' => 'Bukti pembayaran wajib diupload.',
+                'file_bukti.file' => 'File bukti pembayaran tidak valid.',
+                'file_bukti.mimes' => 'Format bukti pembayaran harus JPG, JPEG, PNG, atau WEBP.',
+                'file_bukti.max' => 'Ukuran bukti pembayaran maksimal 5 MB.',
+                'file_bukti.uploaded' => 'File bukti gagal diupload. Pastikan ukuran file tidak terlalu besar dan format file sesuai.',
+            ]
+        );
 
-        // Pastikan periksa ini milik pasien yang login (keamanan)
         $daftar = DaftarPoli::where('id_pasien', Auth::id())
-            ->whereHas('periksa', function ($q) use ($id_periksa) {
-                $q->where('id', $id_periksa);
+            ->whereHas('periksa', function ($query) use ($id_periksa) {
+                $query->where('id', $id_periksa);
             })
             ->with('periksa.buktiPembayaran')
             ->firstOrFail();
 
-        $bukti = $daftar->periksa->buktiPembayaran;
+        $periksa = $daftar->periksa;
+        $bukti = $periksa->buktiPembayaran;
 
-        // Jika sudah verified, tidak bisa upload ulang
         if ($bukti && $bukti->isVerified()) {
-            return redirect()->back()
-                ->with('message', 'Pembayaran sudah diverifikasi, tidak perlu upload ulang.')
+            return redirect()
+                ->back()
+                ->with('message', 'Pembayaran sudah diverifikasi, bukti tidak dapat diupload ulang.')
                 ->with('type', 'error');
         }
 
-        // ── Simpan file ke storage/app/public/bukti ──────────────────────────
-        // File diakses via /storage/bukti/namafile.jpg setelah php artisan storage:link
-        $path = $request->file('file_bukti')->store('bukti', 'public');
+        if (!$request->hasFile('file_bukti')) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors([
+                    'file_bukti' => 'File bukti pembayaran belum dipilih.',
+                ]);
+        }
 
-        // Hapus file lama jika ada (re-upload)
+        $file = $request->file('file_bukti');
+
+        if (!$file->isValid()) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors([
+                    'file_bukti' => 'File bukti pembayaran gagal diupload. Coba gunakan file JPG/PNG dengan ukuran lebih kecil.',
+                ]);
+        }
+
+        $path = $file->store('bukti-pembayaran', 'public');
+
         if ($bukti && $bukti->file_bukti) {
             Storage::disk('public')->delete($bukti->file_bukti);
         }
 
-        // Update atau buat record BuktiPembayaran
         if ($bukti) {
             $bukti->update([
                 'file_bukti' => $path,
-                'status'     => 'pending', // reset ke pending jika re-upload
+                'status' => 'pending',
             ]);
         } else {
             BuktiPembayaran::create([
                 'id_periksa' => $id_periksa,
                 'file_bukti' => $path,
-                'status'     => 'pending',
+                'status' => 'pending',
             ]);
         }
 
-        return redirect()->back()
-            ->with('message', 'Bukti pembayaran berhasil diupload. Menunggu verifikasi admin.')
+        return redirect()
+            ->back()
+            ->with('message', 'Bukti pembayaran berhasil diupload. Silakan tunggu verifikasi dari admin.')
             ->with('type', 'success');
     }
 }

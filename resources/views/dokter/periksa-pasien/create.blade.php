@@ -2,7 +2,8 @@
 
     {{-- Header --}}
     <div class="flex items-center gap-3 mb-6">
-        <a href="{{ route('periksa-pasien.index') }}" class="inline-flex items-center justify-center w-9 h-9 
+        <a href="{{ route('periksa-pasien.index') }}"
+            class="inline-flex items-center justify-center w-9 h-9 
                   rounded-lg bg-slate-100 text-slate-500 
                   hover:bg-slate-200 transition">
             <i class="fas fa-arrow-left text-sm"></i>
@@ -12,41 +13,69 @@
         </h2>
     </div>
 
+    {{-- Error Validasi --}}
+    @if ($errors->any())
+        <div class="mb-4 px-4 py-3 rounded-xl bg-red-100 text-red-700 border border-red-200 text-sm font-semibold">
+            <div class="flex items-start gap-2">
+                <i class="fas fa-circle-exclamation mt-0.5"></i>
+                <div>
+                    <p class="font-bold mb-1">Data belum dapat disimpan.</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Card --}}
     <div class="card bg-base-100 shadow-sm rounded-2xl border border-slate-200">
         <div class="card-body p-8">
 
-            <form action="{{ route('periksa-pasien.store') }}" method="POST">
+            <form action="{{ route('periksa-pasien.store') }}" method="POST" id="form-periksa">
                 @csrf
                 <input type="hidden" name="id_daftar_poli" value="{{ $id }}">
 
                 {{-- Pilih Obat --}}
                 <div class="form-control mb-5">
                     <label class="label pb-1">
-                        <span class="text-sm font-semibold text-gray-700">Pilih Obat <span class="text-red-500">*</span></span>
+                        <span class="text-sm font-semibold text-gray-700">
+                            Pilih Obat <span class="text-red-500">*</span>
+                        </span>
                     </label>
+
                     <select id="select-obat" class="select select-bordered w-full rounded-lg border-2 px-4">
                         <option value="">-- Pilih Obat --</option>
+
                         @foreach ($obats as $obat)
-                            <option value="{{ $obat->id }}"
-                                data-nama="{{ $obat->nama_obat }}"
-                                data-harga="{{ $obat->harga }}">
-                                {{ $obat->nama_obat }} - Rp{{ number_format($obat->harga) }}
+                            <option value="{{ $obat->id }}" data-nama="{{ $obat->nama_obat }}"
+                                data-harga="{{ $obat->harga }}" data-stok="{{ $obat->stok }}"
+                                {{ $obat->stok <= 0 ? 'disabled' : '' }}>
+                                {{ $obat->nama_obat }} - Rp{{ number_format($obat->harga, 0, ',', '.') }}
+                                | Stok: {{ $obat->stok }}{{ $obat->stok <= 0 ? ' (Habis)' : '' }}
                             </option>
                         @endforeach
                     </select>
+
+                    <p class="text-xs text-slate-400 mt-2">
+                        <i class="fas fa-circle-info"></i>
+                        Obat dengan stok 0 tidak bisa dipilih. Setelah resep disimpan, stok otomatis berkurang 1 per
+                        obat.
+                    </p>
                 </div>
 
                 {{-- Obat Terpilih --}}
                 <div class="form-control mb-5">
-                    <label class="label pb-1 ">
+                    <label class="label pb-1">
                         <span class="text-sm font-semibold text-gray-700">Obat Terpilih</span>
                     </label>
 
                     <ul id="obat-terpilih" class="flex flex-col gap-2 mb-2 min-h-[48px]"></ul>
 
                     <input type="hidden" name="biaya_periksa" id="biaya_periksa" value="0">
-                    <input type="hidden" name="obat_json" id="obat_json">
+                    <input type="hidden" name="obat_json" id="obat_json" value="">
                 </div>
 
                 {{-- Total Harga --}}
@@ -54,7 +83,9 @@
                     <label class="label pb-1">
                         <span class="text-sm font-semibold text-gray-700">Total Harga</span>
                     </label>
-                    <div class="input input-bordered w-full rounded-lg flex items-center bg-slate-50 text-slate-700 font-bold" id="total-harga">
+
+                    <div class="input input-bordered w-full rounded-lg flex items-center bg-slate-50 text-slate-700 font-bold"
+                        id="total-harga">
                         Rp 0
                     </div>
                 </div>
@@ -62,10 +93,12 @@
                 {{-- Catatan --}}
                 <div class="form-control mb-8">
                     <label class="label pb-1">
-                        <span class="text-sm font-semibold text-gray-700">Catatan <span class="text-slate-400 font-normal">(Opsional)</span></span>
+                        <span class="text-sm font-semibold text-gray-700">
+                            Catatan <span class="text-slate-400 font-normal">(Opsional)</span>
+                        </span>
                     </label>
-                    <textarea name="catatan" id="catatan" rows="4"
-                        placeholder="Masukkan catatan..."
+
+                    <textarea name="catatan" id="catatan" rows="4" placeholder="Masukkan catatan..."
                         class="textarea textarea-bordered w-full border-2 px-4 py-2 rounded-lg resize-none">{{ old('catatan') }}</textarea>
                 </div>
 
@@ -76,6 +109,7 @@
                         <i class="fas fa-save"></i>
                         Simpan
                     </button>
+
                     <a href="{{ route('periksa-pasien.index') }}"
                         class="btn btn-ghost bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg px-6">
                         Batal
@@ -92,39 +126,97 @@
         const inputBiaya = document.getElementById('biaya_periksa');
         const inputObatJson = document.getElementById('obat_json');
         const totalHargaEl = document.getElementById('total-harga');
+        const formPeriksa = document.getElementById('form-periksa');
 
         let daftarObat = [];
 
         selectObat.addEventListener('change', () => {
             const selectedOption = selectObat.options[selectObat.selectedIndex];
+
             const id = selectedOption.value;
             const nama = selectedOption.dataset.nama;
             const harga = parseInt(selectedOption.dataset.harga || 0);
+            const stok = parseInt(selectedOption.dataset.stok || 0);
 
-            if (!id || daftarObat.some(o => o.id == id)) return;
+            if (!id) return;
 
-            daftarObat.push({ id, nama, harga });
+            if (stok <= 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Stok Obat Habis',
+                    text: 'Obat ini tidak bisa dipilih karena stoknya sudah habis.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#2d4499'
+                });
+
+                selectObat.selectedIndex = 0;
+                return;
+            }
+
+            if (daftarObat.some(o => o.id == id)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Obat Sudah Dipilih',
+                    text: 'Obat ini sudah masuk ke daftar resep pasien.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#2d4499'
+                });
+
+                selectObat.selectedIndex = 0;
+                return;
+            }
+
+            daftarObat.push({
+                id,
+                nama,
+                harga,
+                stok
+            });
+
             renderObat();
             selectObat.selectedIndex = 0;
         });
 
+        formPeriksa.addEventListener('submit', (event) => {
+            if (daftarObat.length === 0) {
+                event.preventDefault();
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Obat Belum Dipilih',
+                    text: 'Minimal pilih satu obat terlebih dahulu sebelum menyimpan pemeriksaan.',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#2d4499'
+                });
+            }
+        });
+
         function renderObat() {
             listObat.innerHTML = '';
+
             let total = 0;
 
             daftarObat.forEach((obat, index) => {
                 total += obat.harga;
 
                 const item = document.createElement('li');
-                item.className = 'flex items-center justify-between px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700';
+                item.className =
+                    'flex items-center justify-between px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700';
+
                 item.innerHTML = `
-                    <span>${obat.nama} — <span class="font-semibold">Rp ${obat.harga.toLocaleString()}</span></span>
+                    <span>
+                        ${obat.nama} —
+                        <span class="font-semibold">Rp ${obat.harga.toLocaleString()}</span>
+                        <span class="text-xs text-slate-400">(Stok: ${obat.stok})</span>
+                    </span>
+
                     <button type="button"
                         onclick="hapusObat(${index})"
                         class="btn btn-sm bg-red-500 hover:bg-red-600 text-white border-none rounded-lg px-3">
                         <i class="fas fa-trash"></i>
                     </button>
                 `;
+
                 listObat.appendChild(item);
             });
 
